@@ -1,0 +1,16 @@
+defaults:
+  - _self_
+  - model: mlp
+  - trainer: default
+  - optim: optuna
+
+dataset:
+  batch_size: 64
+  data_dir: ./data
+
+save_dirs:
+  figures: ./figures
+  
+wandb:
+  project: lightning-wandb
+  mode: disabled

@@ -1,0 +1,4 @@
+max_epochs: 10
+accelerator: auto
+devices: 1
+deterministic: true

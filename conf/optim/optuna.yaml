@@ -1,0 +1,11 @@
+n_trials: 5
+
+search_space:
+  model.hidden_size:
+    type: int
+    low: 64
+    high: 256
+  model.lr:
+    type: loguniform
+    low: 1e-4
+    high: 1e-2
