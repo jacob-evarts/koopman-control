@@ -9,9 +9,9 @@ class SimpleMLP(pl.LightningModule):
 
         self.model = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(28*28, hidden_size),
+            nn.Linear(28*28, self.hparams.hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, 10)
+            nn.Linear(self.hparams.hidden_size, 10)
         )
         self.criterion = nn.CrossEntropyLoss()
 

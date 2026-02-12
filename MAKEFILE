@@ -1,0 +1,9 @@
+.PHONY: clean build
+
+clean: # clean all build, python, and testing files
+	rm -fr htmlcov/
+	rm -fr .pytest_cache
+	rm -fr .mypy_cache
+
+build: # run tox tests and lint
+	tox

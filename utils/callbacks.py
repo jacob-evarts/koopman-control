@@ -1,7 +1,32 @@
-import matplotlib.pyplot as plt
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.callbacks import Callback
 from pathlib import Path
+import matplotlib.pyplot as plt
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint, Callback
+
+
+class LossCSVCallback(pl.Callback):
+    def __init__(self, writer, trial_id: int):
+        self.writer = writer
+        self.trial_id = trial_id
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        metrics = trainer.callback_metrics
+
+        train_loss = metrics.get("train_loss")
+        val_loss = metrics.get("val_loss")
+
+        if train_loss is None:
+            return
+
+        train_loss = float(train_loss.detach().cpu()) if train_loss is not None else None
+        val_loss = float(val_loss.detach().cpu()) if val_loss is not None else None
+
+        self.writer.save_loss(
+            self.trial_id,
+            epoch=trainer.current_epoch,
+            train_loss=train_loss,
+            val_loss=val_loss,
+        )
 
 class LossPlotCallback(Callback):
     def __init__(self, checkpoint_cb: ModelCheckpoint, save_dir: Path, trial_id: int):

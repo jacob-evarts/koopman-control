@@ -1,11 +1,21 @@
-n_trials: 5
+n_trials: 24
 
 search_space:
   model.hidden_size:
     type: int
-    low: 64
+    low: 32
     high: 256
+
   model.lr:
     type: loguniform
     low: 1e-4
-    high: 1e-2
+    high: 1e-1
+
+  model.latent_dim:
+    type: int
+    low: 4
+    high: 32
+
+  model.activation:
+    type: categorical
+    choices: [relu, tanh, silu]
