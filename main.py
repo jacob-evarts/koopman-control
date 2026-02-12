@@ -24,12 +24,14 @@ random.seed(SEED)
 @hydra.main(config_path="conf", config_name="config", version_base=None)
 def main(cfg: DictConfig):
 
-    run_id = f"{datetime.now():%Y%m%d}_{uuid.uuid4().hex[:6]}"
+    run_id = f"{uuid.uuid4().hex[:3]}"
     run_dir = Path(HydraConfig.get().run.dir)
-    writer = Writer(run_dir=run_dir, run_id=run_id)
-    print(f"Run ID: {run_id} Run dir: {run_dir}")
 
-    objective = _make_objective(cfg, writer)
+    train_loader, val_loader, test_loader = get_dataloaders(cfg.dataset.data_dir, cfg.dataset.batch_size)
+
+    writer = Writer(run_dir=run_dir, run_id=run_id)
+    objective = _make_objective(cfg, train_loader, val_loader, test_loader, writer)
+
     study = optuna.create_study(
         study_name=f"koopman_{run_id}",
         direction="minimize",
@@ -40,14 +42,19 @@ def main(cfg: DictConfig):
             interval_steps=3,
         ),
     )
-
+    
     study.optimize(objective, cfg.optim.n_trials)
     best_trial = study.best_trial
     writer.remove_bested_checkpoints(best_trial.number)
     writer.save_study_summary(study)
     writer.save_optuna_plots(study)
     
-def _make_objective(cfg: DictConfig, writer: Writer, run_id: str = None):
+def _make_objective(cfg: DictConfig, 
+                    train_loader: torch.utils.data.DataLoader, 
+                    val_loader: torch.utils.data.DataLoader, 
+                    test_loader: torch.utils.data.DataLoader,
+                    writer: Writer,
+                    run_id: str = None) -> callable:
     def objective(trial: optuna.trial.Trial):
         trial_params = {}
         for name, space in cfg.optim.search_space.items():
@@ -65,14 +72,12 @@ def _make_objective(cfg: DictConfig, writer: Writer, run_id: str = None):
             activation=trial_params.get("activation", cfg.model.activation),
         )
 
-        train_loader, val_loader, test_loader = get_dataloaders(cfg.dataset.data_dir, cfg.dataset.batch_size)
-
         checkpoint_cb = ModelCheckpoint(
             monitor="val_loss",
             mode="min",
             save_top_k=1,
             save_last=False,
-            filename=f"trial-{trial.number:03d}" + "-{epoch:03d}",
+            filename=f"trial-{trial.number:03d}-{{epoch:03d}}",
             dirpath=writer.checkpoints_dir
         )
 
@@ -100,7 +105,6 @@ def _make_objective(cfg: DictConfig, writer: Writer, run_id: str = None):
         return trainer.callback_metrics["val_loss"].item()
 
     return objective
-
 
 if __name__ == "__main__":
     main()

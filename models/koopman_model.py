@@ -46,10 +46,20 @@ class KoopmanAE(pl.LightningModule):
         self.criterion = nn.MSELoss()
 
     def forward(self, x):
-        z = self.encoder(x)
-        z = self.K(z)
-        x_recon = self.decoder(z)
+        z = self.encode(x)
+        z_next = self.linear_dynamics(z)
+        x_recon = self.decode(z_next)
         return x_recon
+    
+    def encode(self, x):
+        z = self.encoder(x)
+        return z
+    
+    def linear_dynamics(self, z):
+        return self.K(z)
+    
+    def decode(self, z):
+        return self.decoder(z)
 
     def training_step(self, batch, _):
         x_0, x_1 = batch
