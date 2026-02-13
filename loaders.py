@@ -1,3 +1,4 @@
+import random
 import torch
 from torch.utils.data import Dataset
 from pathlib import Path
@@ -36,14 +37,23 @@ class RabbitGrassDataset(Dataset):
         rabbits_tp1 = data['rabbits'][t + 1].astype(np.float32)
         x_tp1 = np.stack([grass_tp1, rabbits_tp1], axis=0)
 
-        return torch.from_numpy(x_t), torch.from_numpy(x_tp1)
+        meta = {
+            "file_idx": file_idx,
+            "time": t,
+        }
+
+        return torch.from_numpy(x_t), torch.from_numpy(x_tp1), meta
 
 
 def get_dataloaders(data_folder: str, batch_size: int, train_frac=0.7, val_frac=0.2):
     folder = Path(data_folder)
     all_files = sorted(folder.glob("*.h5"))
-    n_files = len(all_files)
 
+    random.seed(42)
+    all_files = list(all_files)
+    random.shuffle(all_files)
+
+    n_files = len(all_files)
     n_train = int(train_frac * n_files)
     n_val = int(val_frac * n_files)
 
