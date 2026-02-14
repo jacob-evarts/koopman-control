@@ -77,15 +77,30 @@ class KoopmanAE(pl.LightningModule):
 
         total_loss = recon_loss + self.hparams.beta * koopman_loss
 
+        self.log("train_recon_loss", recon_loss)
+        self.log("train_koopman_loss", koopman_loss)
         self.log("train_loss", total_loss)
         return total_loss
 
     def validation_step(self, batch, _):
         x_0, x_1, _ = batch
-        x_pred = self(x_0)
-        loss = self.criterion(x_pred, x_1)
-        self.log("val_loss", loss, prog_bar=True)
-        return loss
+        z_0 = self.encode(x_0)
+        z_1 = self.encode(x_1)
+
+        x_0_recon = self.decode(z_0)
+        x_1_recon = self.decode(z_1)
+
+        recon_loss = self.criterion(x_0, x_0_recon) + self.criterion(x_1, x_1_recon)
+
+        z_1_pred = self.linear_dynamics(z_0)
+        koopman_loss = self.criterion(z_1_pred, z_1)
+
+        total_loss = recon_loss + self.hparams.beta * koopman_loss
+        
+        self.log("val_recon_loss", recon_loss, prog_bar=True)
+        self.log("val_koopman_loss", koopman_loss, prog_bar=True)
+        self.log("val_loss", total_loss, prog_bar=True)
+        return
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)

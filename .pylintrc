@@ -1,0 +1,18 @@
+[MESSAGES CONTROL]
+
+# Disable specific messages
+disable=missing-module-docstring
+
+
+# Set good names.
+good-names=i,j,x,y,z, _UUID, X, _X_train, _X_val, _X_test, X_train, X_val, X_test
+
+[DESIGN]
+
+# Maximum number of arguments for function / method
+max-args=10
+
+[SIMILARITIES]
+
+# Minimum lines number of a similarity.
+min-similarity-lines=7

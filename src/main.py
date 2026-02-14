@@ -5,7 +5,6 @@ import optuna
 import torch
 import pytorch_lightning as pl
 from pathlib import Path
-from datetime import datetime
 from omegaconf import DictConfig
 from hydra.core.hydra_config import HydraConfig
 from pytorch_lightning.loggers import WandbLogger
