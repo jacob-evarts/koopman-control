@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import pytorch_lightning as pl
 
-from utils.component_mappings import ACTIVATIONS
+from koopman_control.utils.component_mappings import ACTIVATIONS
 
 class KoopmanAE(pl.LightningModule):
     def __init__(self, 

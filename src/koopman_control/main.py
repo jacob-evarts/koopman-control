@@ -11,10 +11,10 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from optuna.integration import PyTorchLightningPruningCallback
 
-from writer import Writer
-from models.koopman_model import KoopmanAE
-from loaders import get_dataloaders
-from utils.callbacks import LossCSVCallback, LossPlotCallback
+from koopman_control.writer import Writer
+from koopman_control.models.koopman_model import KoopmanAE
+from koopman_control.loaders import get_dataloaders
+from koopman_control.utils.callbacks import LossCSVCallback, LossPlotCallback
 
 SEED = 42
 torch.manual_seed(SEED)

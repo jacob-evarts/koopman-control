@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "koopman"
+name = "koopman-control"
 version = "0.1.0"
 description = ""
 authors = ["Jacob Evarts <31416036+jacob-evarts@users.noreply.github.com>"]
