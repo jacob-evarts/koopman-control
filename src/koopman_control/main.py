@@ -20,7 +20,7 @@ SEED = 42
 torch.manual_seed(SEED)
 random.seed(SEED)
 
-@hydra.main(config_path="conf", config_name="config", version_base=None)
+@hydra.main(config_path="../conf", config_name="config", version_base=None)
 def main(cfg: DictConfig):
 
     run_id = f"{uuid.uuid4().hex[:3]}"
