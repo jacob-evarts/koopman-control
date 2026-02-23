@@ -4,7 +4,7 @@ import pytorch_lightning as pl
 
 from koopman_control.utils.component_mappings import ACTIVATIONS
 
-class KoopmanAE(pl.LightningModule):
+class KoopmanCNN(pl.LightningModule):
     def __init__(self, 
                  hidden_size=128, 
                  lr=1e-3, 

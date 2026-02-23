@@ -45,9 +45,12 @@ class Writer:
             if f"trial-{best_trial_id:03d}" not in checkpoint_file.name:
                 checkpoint_file.unlink()
         
-    def save_study_summary(self, study):
+    def save_study_summary(self, study, cfg):
         best_trial = study.best_trial
         summary = {
+            "run_id": self.run_id,
+            "dataset": cfg.dataset.data_dir,
+            "batch_size": cfg.dataset.batch_size,
             "best_trial_number": best_trial.number,
             "best_val_loss": best_trial.value,
             "best_params": best_trial.params,

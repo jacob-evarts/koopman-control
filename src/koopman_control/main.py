@@ -12,8 +12,9 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from optuna.integration import PyTorchLightningPruningCallback
 
 from koopman_control.writer import Writer
-from koopman_control.models.koopman_model import KoopmanAE
-from koopman_control.loaders import get_dataloaders
+from koopman_control.models.koopman_cnn import KoopmanCNN
+from koopman_control.models.koopman_mlp import KoopmanMLP
+from koopman_control.loaders import get_dataloaders, get_dataloaders_csv
 from koopman_control.utils.callbacks import LossCSVCallback, LossPlotCallback
 
 SEED = 42
@@ -26,10 +27,22 @@ def main(cfg: DictConfig):
     run_id = f"{uuid.uuid4().hex[:3]}"
     run_dir = Path(HydraConfig.get().run.dir)
 
-    train_loader, val_loader, test_loader = get_dataloaders(cfg.dataset.data_dir, cfg.dataset.batch_size)
+    mlp_model = False
+    if cfg.dataset.csv_file is not None:
+        mlp_model = True
+        train_loader, val_loader, test_loader = get_dataloaders_csv(
+            cfg.dataset.data_dir,
+            cfg.dataset.csv_file,
+            cfg.dataset.batch_size
+        )
+    else:
+        train_loader, val_loader, test_loader = get_dataloaders(
+            cfg.dataset.data_dir,
+            cfg.dataset.batch_size
+        )
 
     writer = Writer(run_dir=run_dir, run_id=run_id)
-    objective = _make_objective(cfg, train_loader, val_loader, test_loader, writer)
+    objective = _make_objective(cfg, train_loader, val_loader, test_loader, writer, mlp_model=mlp_model)
 
     study = optuna.create_study(
         study_name=f"koopman_{run_id}",
@@ -45,7 +58,7 @@ def main(cfg: DictConfig):
     study.optimize(objective, cfg.optim.n_trials)
     best_trial = study.best_trial
     writer.remove_bested_checkpoints(best_trial.number)
-    writer.save_study_summary(study)
+    writer.save_study_summary(study, cfg)
     writer.save_optuna_plots(study)
     
 def _make_objective(cfg: DictConfig, 
@@ -53,6 +66,7 @@ def _make_objective(cfg: DictConfig,
                     val_loader: torch.utils.data.DataLoader, 
                     test_loader: torch.utils.data.DataLoader,
                     writer: Writer,
+                    mlp_model: bool = False,
                     run_id: str = None) -> callable:
     def objective(trial: optuna.trial.Trial):
         trial_params = {}
@@ -64,12 +78,21 @@ def _make_objective(cfg: DictConfig,
             elif space.type == "categorical":
                 trial_params[name] = trial.suggest_categorical(name, space.choices)
 
-        model = KoopmanAE(
-            hidden_size=trial_params.get("hidden_size", cfg.model.hidden_size),
-            lr=trial_params.get("lr", cfg.model.lr),
-            latent_dim=trial_params.get("latent_dim", cfg.model.latent_dim),
-            activation=trial_params.get("activation", cfg.model.activation),
-        )
+        if mlp_model:
+            model = KoopmanMLP(
+                hidden_size=trial_params.get("hidden_size", cfg.model.hidden_size),
+                lr=trial_params.get("lr", cfg.model.lr),
+                latent_dim=trial_params.get("latent_dim", cfg.model.latent_dim),
+                activation=trial_params.get("activation", cfg.model.activation),
+                input_dim=train_loader.dataset.input_dim,
+            )
+        else:
+            model = KoopmanCNN(
+                hidden_size=trial_params.get("hidden_size", cfg.model.hidden_size),
+                lr=trial_params.get("lr", cfg.model.lr),
+                latent_dim=trial_params.get("latent_dim", cfg.model.latent_dim),
+                activation=trial_params.get("activation", cfg.model.activation),
+            )
 
         checkpoint_cb = ModelCheckpoint(
             monitor="val_loss",
