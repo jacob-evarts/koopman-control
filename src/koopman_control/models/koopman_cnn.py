@@ -16,9 +16,10 @@ class KoopmanCNN(pl.LightningModule):
         self.save_hyperparameters()
 
         self.activation_fn = ACTIVATIONS[activation]
+        self.num_channels = 1
         
         self.encoder = nn.Sequential(
-            nn.Conv2d(2, 16, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(self.num_channels, 16, kernel_size=3, stride=2, padding=1),
             self.activation_fn(),
             nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1),
             self.activation_fn(),
@@ -41,7 +42,7 @@ class KoopmanCNN(pl.LightningModule):
             self.activation_fn(),
             nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1),
             self.activation_fn(),
-            nn.ConvTranspose2d(16, 2, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.ConvTranspose2d(16, self.num_channels, kernel_size=3, stride=2, padding=1, output_padding=1),
             nn.Sigmoid()
         )
         self.criterion = nn.MSELoss()

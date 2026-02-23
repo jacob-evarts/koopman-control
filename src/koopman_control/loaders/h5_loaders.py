@@ -2,41 +2,42 @@ import random
 import torch
 from torch.utils.data import Dataset
 from pathlib import Path
-import h5py
-import pandas as pd
-import numpy as np
 
-class RabbitGrassDataset(Dataset):
+import numpy as np
+from abc import ABC, abstractmethod
+
+class H5Dataset(Dataset, ABC):
     def __init__(self, data_files: list[Path]):
         self.data = []
         self.index_map = []
 
         for file_idx, file_path in enumerate(data_files):
             with h5py.File(file_path, 'r') as h5f:
-                grass = h5f['grass'][:]      # shape: [time, width, height]
-                rabbits = h5f['rabbits'][:]
-                n_steps = grass.shape[0]
+                data_dict = self.load_h5_data(h5f)
+                n_steps = next(iter(data_dict.values())).shape[0]
+                self.data.append(data_dict)
 
-                self.data.append({'grass': grass, 'rabbits': rabbits})
-
-                # Create index map for each timestep
                 for t in range(n_steps - 1):
                     self.index_map.append((file_idx, t))
+
+    @abstractmethod
+    def load_h5_data(self, h5f) -> dict:
+        pass
+
+    @abstractmethod
+    def get_channels(self) -> list[str]:
+        pass
 
     def __len__(self):
         return len(self.index_map)
 
     def __getitem__(self, idx):
         file_idx, t = self.index_map[idx]
-        data = self.data[file_idx]
+        data_dict = self.data[file_idx]
 
-        grass_t = data['grass'][t].astype(np.float32)
-        rabbits_t = data['rabbits'][t].astype(np.float32)
-        x_t = np.stack([grass_t, rabbits_t], axis=0)
-
-        grass_tp1 = data['grass'][t + 1].astype(np.float32)
-        rabbits_tp1 = data['rabbits'][t + 1].astype(np.float32)
-        x_tp1 = np.stack([grass_tp1, rabbits_tp1], axis=0)
+        channels = self.get_channels()
+        x_t = np.stack([data_dict[ch][t].astype(np.float32) for ch in channels], axis=0)
+        x_tp1 = np.stack([data_dict[ch][t + 1].astype(np.float32) for ch in channels], axis=0)
 
         meta = {
             "idx": file_idx,
@@ -45,8 +46,27 @@ class RabbitGrassDataset(Dataset):
 
         return torch.from_numpy(x_t), torch.from_numpy(x_tp1), meta
 
+class RabbitGrassDataset(H5Dataset):
+    def load_h5_data(self, h5f):
+        return {
+            'grass': h5f['grass'][:],
+            'rabbits': h5f['rabbits'][:]
+        }
 
-def get_dataloaders(data_folder: str, batch_size: int, train_frac=0.7, val_frac=0.2):
+    def get_channels(self):
+        return ['grass', 'rabbits']
+
+class FireflyDataset(H5Dataset):
+    def load_h5_data(self, h5f):
+        return {
+            'firefly': h5f['firefly'][:]
+        }
+
+    def get_channels(self):
+        return ['firefly']
+
+
+def get_dataloaders(data_folder: str, batch_size: int, train_frac=0.7, val_frac=0.2, dataset="rabbit"):
     folder = Path(data_folder)
     all_files = sorted(folder.glob("*.h5"))
 
@@ -62,9 +82,16 @@ def get_dataloaders(data_folder: str, batch_size: int, train_frac=0.7, val_frac=
     val_files = all_files[n_train:n_train + n_val]
     test_files = all_files[n_train + n_val:]
 
-    train_dataset = RabbitGrassDataset(train_files)
-    val_dataset = RabbitGrassDataset(val_files)
-    test_dataset = RabbitGrassDataset(test_files)
+    if dataset == "rabbit":
+        dataset_cls = RabbitGrassDataset
+    elif dataset == "firefly":
+        dataset_cls = FireflyDataset
+    else:
+        raise ValueError(f"Unknown dataset: {dataset}")
+    
+    train_dataset = dataset_cls(train_files)
+    val_dataset = dataset_cls(val_files)
+    test_dataset = dataset_cls(test_files)
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
@@ -73,86 +100,3 @@ def get_dataloaders(data_folder: str, batch_size: int, train_frac=0.7, val_frac=
     return train_loader, val_loader, test_loader
 
 
-class RabbitGrassCSVDataset(Dataset):
-    def __init__(self, df, feature_cols=["rabbit_population", "grass_population", "rabbit_density", "grass_density","log_rabbit_population", "log_grass_population", "rabbit_grass_ratio"]):
-        self.data = []
-        self.index_map = []
-
-        df = df.sort_values(["filename", "timepoint"]).reset_index(drop=True)
-
-        for sim_name, sim_df in df.groupby("filename"):
-            sim_df = sim_df.sort_values("timepoint").reset_index(drop=True)
-
-            features = sim_df[feature_cols].values.astype(np.float32)
-            n_steps = len(features)
-
-            self.data.append(features)
-
-            for t in range(n_steps - 1):
-                self.index_map.append((len(self.data) - 1, t))
-
-        self.feature_dim = self.data[0].shape[1]
-
-    @property
-    def input_dim(self):
-        return self.feature_dim
-
-    def __len__(self):
-        return len(self.index_map)
-    
-
-    def __getitem__(self, idx):
-        seq_idx, t = self.index_map[idx]
-        seq = self.data[seq_idx]
-
-        x_t = seq[t]
-        x_tp1 = seq[t + 1]
-
-        meta = {"idx": seq_idx, "time": t}
-
-        return torch.from_numpy(x_t), torch.from_numpy(x_tp1), meta
-    
-def get_dataloaders_csv(
-    data_folder: str,
-    csv_file: str,
-    batch_size: int,
-    train_frac=0.7,
-    val_frac=0.2,
-):
-    folder = Path(data_folder)
-    csv_path = folder / csv_file
-
-    df = pd.read_csv(csv_path)
-
-    all_sims = df["filename"].unique().tolist()
-
-    random.seed(42)
-    random.shuffle(all_sims)
-
-    n_total = len(all_sims)
-    n_train = int(train_frac * n_total)
-    n_val = int(val_frac * n_total)
-
-    train_sims = all_sims[:n_train]
-    val_sims = all_sims[n_train:n_train + n_val]
-    test_sims = all_sims[n_train + n_val:]
-
-    train_df = df[df["filename"].isin(train_sims)]
-    val_df = df[df["filename"].isin(val_sims)]
-    test_df = df[df["filename"].isin(test_sims)]
-
-    train_dataset = RabbitGrassCSVDataset(train_df)
-    val_dataset = RabbitGrassCSVDataset(val_df)
-    test_dataset = RabbitGrassCSVDataset(test_df)
-
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True
-    )
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False
-    )
-    test_loader = torch.utils.data.DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False
-    )
-
-    return train_loader, val_loader, test_loader

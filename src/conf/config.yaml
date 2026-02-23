@@ -6,8 +6,8 @@ defaults:
 
 dataset:
   batch_size: 64
-  data_dir: ./data/rabbit_grass_sweeps_oscil
-  csv_file: rabbit_grass_sweeps_oscil_summary_stats.csv
+  data_dir: ./data/firefly_synchronization_sweeps
+  csv_file: 
 
 save_dirs:
   figures: ./figures

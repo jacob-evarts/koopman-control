@@ -14,7 +14,8 @@ from optuna.integration import PyTorchLightningPruningCallback
 from koopman_control.writer import Writer
 from koopman_control.models.koopman_cnn import KoopmanCNN
 from koopman_control.models.koopman_mlp import KoopmanMLP
-from koopman_control.loaders import get_dataloaders, get_dataloaders_csv
+from koopman_control.loaders.h5_loaders import get_dataloaders
+from koopman_control.loaders.csv_loader import get_dataloaders_csv
 from koopman_control.utils.callbacks import LossCSVCallback, LossPlotCallback
 
 SEED = 42

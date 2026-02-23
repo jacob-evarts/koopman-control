@@ -50,6 +50,7 @@ class Writer:
         summary = {
             "run_id": self.run_id,
             "dataset": cfg.dataset.data_dir,
+            "model_type": "cnn" if cfg.dataset.csv_file is None else "mlp",
             "batch_size": cfg.dataset.batch_size,
             "best_trial_number": best_trial.number,
             "best_val_loss": best_trial.value,
