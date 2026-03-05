@@ -2,6 +2,7 @@ import random
 import torch
 from torch.utils.data import Dataset
 from pathlib import Path
+import h5py
 
 import numpy as np
 from abc import ABC, abstractmethod
@@ -27,6 +28,10 @@ class H5Dataset(Dataset, ABC):
     @abstractmethod
     def get_channels(self) -> list[str]:
         pass
+
+    @property
+    def num_channels(self):
+        return len(self.get_channels())
 
     def __len__(self):
         return len(self.index_map)
@@ -59,12 +64,24 @@ class RabbitGrassDataset(H5Dataset):
 class FireflyDataset(H5Dataset):
     def load_h5_data(self, h5f):
         return {
-            'firefly': h5f['firefly'][:]
+            'flashing': h5f['flashing'][:],
+            'resting': h5f['resting'][:]
         }
 
     def get_channels(self):
-        return ['firefly']
+        return ['flashing', 'resting']
+    
+class ArcadeDataset(H5Dataset):
+    def load_h5_data(self, h5f):
+        return {
+            '1cell': h5f['1cell'][:],
+            '2cell': h5f['2cell'][:],
+            '3cell': h5f['3cell'][:],
+            '4cell': h5f['4cell'][:],
+        }
 
+    def get_channels(self):
+        return ['1cell', '2cell', "3cell", "4cell"]
 
 def get_dataloaders(data_folder: str, batch_size: int, train_frac=0.7, val_frac=0.2, dataset="rabbit"):
     folder = Path(data_folder)
@@ -86,6 +103,8 @@ def get_dataloaders(data_folder: str, batch_size: int, train_frac=0.7, val_frac=
         dataset_cls = RabbitGrassDataset
     elif dataset == "firefly":
         dataset_cls = FireflyDataset
+    elif dataset == "arcade":
+        dataset_cls = ArcadeDataset
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
     

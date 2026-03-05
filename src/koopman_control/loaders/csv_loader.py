@@ -8,6 +8,7 @@ import numpy as np
 class CSVDataset(Dataset):
     def __init__(self, df, feature_cols):
         self.data = []
+        self.filenames = []
         self.index_map = []
 
         df = df.sort_values(["filename", "timepoint"]).reset_index(drop=True)
@@ -19,11 +20,12 @@ class CSVDataset(Dataset):
             n_steps = len(features)
 
             self.data.append(features)
+            self.filenames.append(sim_name)
 
             for t in range(n_steps - 1):
                 self.index_map.append((len(self.data) - 1, t))
 
-        self.feature_dim = self.data[0].shape[1]
+        self.feature_dim = len(feature_cols)
 
     @property
     def input_dim(self):
@@ -39,7 +41,7 @@ class CSVDataset(Dataset):
         x_t = seq[t]
         x_tp1 = seq[t + 1]
 
-        meta = {"idx": seq_idx, "time": t}
+        meta = {"idx": seq_idx, "time": t, "filename": self.filenames[seq_idx]}
 
         return torch.from_numpy(x_t), torch.from_numpy(x_tp1), meta
 
@@ -59,7 +61,26 @@ class RabbitGrassCSVDataset(CSVDataset):
 class FireflyCSVDataset(CSVDataset):
     def __init__(self, df, feature_cols=None):
         if feature_cols is None:
-            feature_cols = ["firefly"]
+            feature_cols = [
+                "flashing_count",
+                "flashing_fraction",
+                "resting_fraction",
+                "avg_flashing_neighbors",
+                "flashing_spatial_entropy"
+            ]
+        super().__init__(df, feature_cols=feature_cols)
+
+class ArcadeCSVDataset(CSVDataset):
+    def __init__(self, df, feature_cols=None):
+        if feature_cols is None:
+            feature_cols = [
+                "n_cells",
+                "shannon",
+                "act_ratio",
+                "colony_diameter",
+                "doub_time",
+                "colony_growth",
+            ]
         super().__init__(df, feature_cols=feature_cols)
 
 def get_dataloaders_csv(
@@ -97,6 +118,8 @@ def get_dataloaders_csv(
         dataset_cls = RabbitGrassCSVDataset
     elif dataset == "firefly":
         dataset_cls = FireflyCSVDataset
+    elif dataset== "arcade":
+        dataset_cls = ArcadeCSVDataset
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 

@@ -6,8 +6,9 @@ defaults:
 
 dataset:
   batch_size: 64
-  data_dir: ./data/firefly_synchronization_sweeps
-  csv_file: 
+  dataset_name: arcade
+  data_dir: ./data/arcade_sweeps
+  csv_file: square_emergent.csv
 
 save_dirs:
   figures: ./figures

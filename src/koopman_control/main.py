@@ -29,18 +29,21 @@ def main(cfg: DictConfig):
     run_dir = Path(HydraConfig.get().run.dir)
 
     mlp_model = False
-    if cfg.dataset.csv_file is not None:
+    if cfg.dataset.csv_file is None:
+        train_loader, val_loader, test_loader = get_dataloaders(
+            cfg.dataset.data_dir,
+            cfg.dataset.batch_size,
+            dataset = cfg.dataset.dataset_name
+        )
+    else:
         mlp_model = True
         train_loader, val_loader, test_loader = get_dataloaders_csv(
             cfg.dataset.data_dir,
             cfg.dataset.csv_file,
-            cfg.dataset.batch_size
+            cfg.dataset.batch_size,
+            dataset = cfg.dataset.dataset_name
         )
-    else:
-        train_loader, val_loader, test_loader = get_dataloaders(
-            cfg.dataset.data_dir,
-            cfg.dataset.batch_size
-        )
+        
 
     writer = Writer(run_dir=run_dir, run_id=run_id)
     objective = _make_objective(cfg, train_loader, val_loader, test_loader, writer, mlp_model=mlp_model)
@@ -93,6 +96,7 @@ def _make_objective(cfg: DictConfig,
                 lr=trial_params.get("lr", cfg.model.lr),
                 latent_dim=trial_params.get("latent_dim", cfg.model.latent_dim),
                 activation=trial_params.get("activation", cfg.model.activation),
+                num_channels=train_loader.dataset.num_channels
             )
 
         checkpoint_cb = ModelCheckpoint(

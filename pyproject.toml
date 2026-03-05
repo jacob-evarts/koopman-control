@@ -25,6 +25,7 @@ black = "^26.1.0"
 mypy = "^1.19.1"
 pylint = "^4.0.4"
 pandas = "^3.0.0"
+imageio = "^2.37.2"
 
 
 [tool.poetry.group.test.dependencies]

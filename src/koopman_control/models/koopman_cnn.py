@@ -11,12 +11,13 @@ class KoopmanCNN(pl.LightningModule):
                  latent_dim=32, 
                  activation="relu",
                  beta=1.0,
+                 num_channels=1,
                 ):
         super().__init__()
         self.save_hyperparameters()
 
         self.activation_fn = ACTIVATIONS[activation]
-        self.num_channels = 1
+        self.num_channels = num_channels
         
         self.encoder = nn.Sequential(
             nn.Conv2d(self.num_channels, 16, kernel_size=3, stride=2, padding=1),
