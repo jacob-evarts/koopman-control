@@ -10,8 +10,9 @@ from optuna.visualization import (
 
 
 class Writer:
-    def __init__(self, run_dir: Path, run_id: str):
+    def __init__(self, run_dir: Path, run_id: str, run_name: str = None):
         self.run_id = run_id
+        self.run_name = run_name
         self.results_dir = run_dir / f"results_{run_id}"
         self.figures_dir = self.results_dir / "figures"
         self.losses_dir = self.results_dir / "losses"
@@ -48,6 +49,7 @@ class Writer:
     def save_study_summary(self, study, cfg):
         best_trial = study.best_trial
         summary = {
+            "name": self.run_name,
             "run_id": self.run_id,
             "dataset": cfg.dataset.data_dir,
             "model_type": "cnn" if cfg.dataset.csv_file is None else "mlp",

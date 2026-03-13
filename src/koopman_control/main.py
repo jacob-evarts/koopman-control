@@ -45,7 +45,7 @@ def main(cfg: DictConfig):
         )
         
 
-    writer = Writer(run_dir=run_dir, run_id=run_id)
+    writer = Writer(run_dir=run_dir, run_id=run_id, run_name=cfg.name)
     objective = _make_objective(cfg, train_loader, val_loader, test_loader, writer, mlp_model=mlp_model)
 
     study = optuna.create_study(

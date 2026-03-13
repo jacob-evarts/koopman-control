@@ -1,4 +1,4 @@
-n_trials: 24
+n_trials: 16
 
 search_space:
   model.hidden_size:
@@ -18,4 +18,4 @@ search_space:
 
   model.activation:
     type: categorical
-    choices: [relu, tanh, silu, leakyrelu]
+    choices: [relu, tanh, silu, leakyrelu, elu]

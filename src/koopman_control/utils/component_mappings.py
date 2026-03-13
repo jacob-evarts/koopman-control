@@ -4,5 +4,6 @@ ACTIVATIONS = {
     "relu": nn.ReLU,
     "tanh": nn.Tanh,
     "silu": nn.SiLU,
-    "leakyrelu": nn.LeakyReLU
+    "leakyrelu": nn.LeakyReLU,
+    "elu": nn.ELU
 }

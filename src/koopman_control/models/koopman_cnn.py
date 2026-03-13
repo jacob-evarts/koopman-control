@@ -17,6 +17,7 @@ class KoopmanCNN(pl.LightningModule):
         self.save_hyperparameters()
 
         self.activation_fn = ACTIVATIONS[activation]
+        self.spatial_dim = latent_dim - num_channels
         self.num_channels = num_channels
         
         self.encoder = nn.Sequential(
@@ -28,6 +29,12 @@ class KoopmanCNN(pl.LightningModule):
             self.activation_fn(),
             nn.Flatten(),
             nn.Linear(64 * 8 * 8, hidden_size),
+            self.activation_fn(),
+            nn.Linear(hidden_size, self.spatial_dim)
+        )
+
+        self.fusion = nn.Sequential(
+            nn.Linear(self.spatial_dim + self.num_channels, hidden_size),
             self.activation_fn(),
             nn.Linear(hidden_size, latent_dim)
         )
@@ -54,9 +61,11 @@ class KoopmanCNN(pl.LightningModule):
         x_recon = self.decode(z_next)
         return x_recon
     
-    def encode(self, x):
-        z = self.encoder(x)
-        return z
+    def encode(self, x, s):
+        z_spatial = self.encoder(x)
+        z_joint = torch.cat([z_spatial, s], dim=-1)
+        z_joint = self.fusion(z_joint)
+        return z_joint
     
     def linear_dynamics(self, z):
         return self.K(z)
@@ -65,19 +74,21 @@ class KoopmanCNN(pl.LightningModule):
         return self.decoder(z)
 
     def training_step(self, batch, _):
-        x_0, x_1, _ = batch
-        z_0 = self.encode(x_0)
-        z_1 = self.encode(x_1)
+        (x_0, s_0), (x_1, s_1), _ = batch
+        z_0 = self.encode(x_0, s_0)
+        z_1 = self.encode(x_1, s_1)
+
+        z_1_pred = self.linear_dynamics(z_0)
 
         x_0_recon = self.decode(z_0)
         x_1_recon = self.decode(z_1)
-
         recon_loss = self.criterion(x_0, x_0_recon) + self.criterion(x_1, x_1_recon)
 
-        z_1_pred = self.linear_dynamics(z_0)
         koopman_loss = self.criterion(z_1_pred, z_1)
 
-        total_loss = recon_loss + self.hparams.beta * koopman_loss
+        count_loss = self.criterion(z_0[:, :self.num_channels], s_0) + self.criterion(z_1[:, :self.num_channels], s_1)
+
+        total_loss = recon_loss + self.hparams.beta * koopman_loss #+ count_loss
 
         self.log("train_recon_loss", recon_loss)
         self.log("train_koopman_loss", koopman_loss)
@@ -85,9 +96,9 @@ class KoopmanCNN(pl.LightningModule):
         return total_loss
 
     def validation_step(self, batch, _):
-        x_0, x_1, _ = batch
-        z_0 = self.encode(x_0)
-        z_1 = self.encode(x_1)
+        (x_0, s_0), (x_1, s_1), _ = batch
+        z_0 = self.encode(x_0, s_0)
+        z_1 = self.encode(x_1, s_1)
 
         x_0_recon = self.decode(z_0)
         x_1_recon = self.decode(z_1)
@@ -97,10 +108,13 @@ class KoopmanCNN(pl.LightningModule):
         z_1_pred = self.linear_dynamics(z_0)
         koopman_loss = self.criterion(z_1_pred, z_1)
 
-        total_loss = recon_loss + self.hparams.beta * koopman_loss
-        
+        count_loss = self.criterion(z_0[:, :self.num_channels], s_0) + self.criterion(z_1[:, :self.num_channels], s_1)
+
+        total_loss = recon_loss + self.hparams.beta * koopman_loss #+ count_loss
+
         self.log("val_recon_loss", recon_loss, prog_bar=True)
         self.log("val_koopman_loss", koopman_loss, prog_bar=True)
+        self.log("val_count_loss", count_loss, prog_bar=True)
         self.log("val_loss", total_loss, prog_bar=True)
         return
 

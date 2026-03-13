@@ -41,15 +41,26 @@ class H5Dataset(Dataset, ABC):
         data_dict = self.data[file_idx]
 
         channels = self.get_channels()
-        x_t = np.stack([data_dict[ch][t].astype(np.float32) for ch in channels], axis=0)
-        x_tp1 = np.stack([data_dict[ch][t + 1].astype(np.float32) for ch in channels], axis=0)
+
+        grid_t0 = np.stack([data_dict[ch][t].astype(np.float32) for ch in channels], axis=0)
+        grid_t1 = np.stack([data_dict[ch][t + 1].astype(np.float32) for ch in channels], axis=0)
+
+        pop_t0 = grid_t0.sum(axis=(-1, -2))
+        pop_t1 = grid_t1.sum(axis=(-1, -2))
+
+        grid_t0 = torch.from_numpy(grid_t0)
+        grid_t1 = torch.from_numpy(grid_t1)
+
+        max_pop = 64 * 64
+        pop_t0 = torch.from_numpy(pop_t0 / max_pop)
+        pop_t1 = torch.from_numpy(pop_t1 / max_pop)
 
         meta = {
             "idx": file_idx,
             "time": t,
         }
 
-        return torch.from_numpy(x_t), torch.from_numpy(x_tp1), meta
+        return (grid_t0, pop_t0), (grid_t1, pop_t1), meta
 
 class RabbitGrassDataset(H5Dataset):
     def load_h5_data(self, h5f):

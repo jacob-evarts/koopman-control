@@ -4,11 +4,13 @@ defaults:
   - trainer: default
   - optim: optuna
 
+name: fusion-no-count-loss
+
 dataset:
   batch_size: 64
-  dataset_name: arcade
-  data_dir: ./data/arcade_sweeps
-  csv_file: square_emergent.csv
+  dataset_name: rabbit
+  data_dir: ./data/rabbit_grass_sweeps_oscil
+  csv_file:
 
 save_dirs:
   figures: ./figures
