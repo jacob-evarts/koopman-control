@@ -70,9 +70,10 @@ class KoopmanMLP(pl.LightningModule):
 
         total_loss = recon_loss + self.hparams.beta * koopman_loss
 
-        self.log("train_recon_loss", recon_loss)
-        self.log("train_koopman_loss", koopman_loss)
-        self.log("train_loss", total_loss)
+        bs = x_0.shape[0]
+        self.log("train_recon_loss", recon_loss, batch_size=bs)
+        self.log("train_koopman_loss", koopman_loss, batch_size=bs)
+        self.log("train_loss", total_loss, batch_size=bs)
         return total_loss
 
     def validation_step(self, batch, _):
@@ -89,10 +90,11 @@ class KoopmanMLP(pl.LightningModule):
         koopman_loss = self.criterion(z_1_pred, z_1)
 
         total_loss = recon_loss + self.hparams.beta * koopman_loss
-        
-        self.log("val_recon_loss", recon_loss, prog_bar=True)
-        self.log("val_koopman_loss", koopman_loss, prog_bar=True)
-        self.log("val_loss", total_loss, prog_bar=True)
+
+        bs = x_0.shape[0]
+        self.log("val_recon_loss", recon_loss, prog_bar=True, batch_size=bs)
+        self.log("val_koopman_loss", koopman_loss, prog_bar=True, batch_size=bs)
+        self.log("val_loss", total_loss, prog_bar=True, batch_size=bs)
         return
 
     def configure_optimizers(self):

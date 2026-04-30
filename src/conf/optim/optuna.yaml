@@ -1,4 +1,4 @@
-n_trials: 24
+n_trials: 10
 
 search_space:
   model.hidden_size:

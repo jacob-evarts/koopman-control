@@ -12,41 +12,29 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from optuna.integration import PyTorchLightningPruningCallback
 
 from koopman_control.writer import Writer
-from koopman_control.models.koopman_cnn import KoopmanCNN
-from koopman_control.models.koopman_mlp import KoopmanMLP
-from koopman_control.loaders.h5_loaders import get_dataloaders
-from koopman_control.loaders.csv_loader import get_dataloaders_csv
+from koopman_control.loaders.dataloaders import get_dataloaders
+from koopman_control.models.factory import build_model
 from koopman_control.utils.callbacks import LossCSVCallback, LossPlotCallback
 
 SEED = 42
 torch.manual_seed(SEED)
 random.seed(SEED)
 
-@hydra.main(config_path="../conf", config_name="config", version_base=None)
-def main(cfg: DictConfig):
 
+@hydra.main(config_path="../conf", config_name="config", version_base=None)
+def main(cfg: DictConfig) -> None:
     run_id = f"{uuid.uuid4().hex[:3]}"
     run_dir = Path(HydraConfig.get().run.dir)
+    run_study(cfg, run_dir, run_id)
 
-    mlp_model = False
-    if cfg.dataset.csv_file is None:
-        train_loader, val_loader, test_loader = get_dataloaders(
-            cfg.dataset.data_dir,
-            cfg.dataset.batch_size,
-            dataset = cfg.dataset.dataset_name
-        )
-    else:
-        mlp_model = True
-        train_loader, val_loader, test_loader = get_dataloaders_csv(
-            cfg.dataset.data_dir,
-            cfg.dataset.csv_file,
-            cfg.dataset.batch_size,
-            dataset = cfg.dataset.dataset_name
-        )
-        
 
+def run_study(cfg: DictConfig, run_dir: Path, run_id: str) -> None:
+    """Run Optuna study: load data, create writer and objective, optimize, save results."""
+    train_loader, val_loader, test_loader, dataset_props = get_dataloaders(cfg.dataset)
     writer = Writer(run_dir=run_dir, run_id=run_id)
-    objective = _make_objective(cfg, train_loader, val_loader, test_loader, writer, mlp_model=mlp_model)
+    objective = _make_objective(
+        cfg, train_loader, val_loader, writer, dataset_props, run_id
+    )
 
     study = optuna.create_study(
         study_name=f"koopman_{run_id}",
@@ -58,46 +46,52 @@ def main(cfg: DictConfig):
             interval_steps=3,
         ),
     )
-    
+
     study.optimize(objective, cfg.optim.n_trials)
     best_trial = study.best_trial
     writer.remove_bested_checkpoints(best_trial.number)
-    writer.save_study_summary(study, cfg)
+
+    summary = {
+        "run_id": run_id,
+        "model_type": dataset_props.model_type,
+        "dataset": cfg.dataset.data_dir,
+        "batch_size": cfg.dataset.batch_size,
+        "best_trial_number": best_trial.number,
+        "best_val_loss": best_trial.value,
+        "best_params": best_trial.params,
+        "all_trials": [
+            {
+                "trial_number": t.number,
+                "val_loss": t.value,
+                "params": t.params,
+            }
+            for t in study.trials
+        ],
+    }
+    writer.save_study_summary(summary)
     writer.save_optuna_plots(study)
-    
-def _make_objective(cfg: DictConfig, 
-                    train_loader: torch.utils.data.DataLoader, 
-                    val_loader: torch.utils.data.DataLoader, 
-                    test_loader: torch.utils.data.DataLoader,
-                    writer: Writer,
-                    mlp_model: bool = False,
-                    run_id: str = None) -> callable:
+
+
+def _make_objective(
+    cfg: DictConfig,
+    train_loader: torch.utils.data.DataLoader,
+    val_loader: torch.utils.data.DataLoader,
+    writer: Writer,
+    dataset_props,
+    run_id: str):
     def objective(trial: optuna.trial.Trial):
         trial_params = {}
         for name, space in cfg.optim.search_space.items():
             if space.type == "int":
                 trial_params[name] = trial.suggest_int(name, space.low, space.high)
             elif space.type == "loguniform":
-                trial_params[name] = trial.suggest_float(name, space.low, space.high, log=True)
+                trial_params[name] = trial.suggest_float(
+                    name, space.low, space.high, log=True
+                )
             elif space.type == "categorical":
                 trial_params[name] = trial.suggest_categorical(name, space.choices)
 
-        if mlp_model:
-            model = KoopmanMLP(
-                hidden_size=trial_params.get("hidden_size", cfg.model.hidden_size),
-                lr=trial_params.get("lr", cfg.model.lr),
-                latent_dim=trial_params.get("latent_dim", cfg.model.latent_dim),
-                activation=trial_params.get("activation", cfg.model.activation),
-                input_dim=train_loader.dataset.input_dim,
-            )
-        else:
-            model = KoopmanCNN(
-                hidden_size=trial_params.get("hidden_size", cfg.model.hidden_size),
-                lr=trial_params.get("lr", cfg.model.lr),
-                latent_dim=trial_params.get("latent_dim", cfg.model.latent_dim),
-                activation=trial_params.get("activation", cfg.model.activation),
-                num_channels=train_loader.dataset.num_channels
-            )
+        model = build_model(cfg, trial_params, dataset_props)
 
         checkpoint_cb = ModelCheckpoint(
             monitor="val_loss",
@@ -105,7 +99,7 @@ def _make_objective(cfg: DictConfig,
             save_top_k=1,
             save_last=False,
             filename=f"trial-{trial.number:03d}-{{epoch:03d}}",
-            dirpath=writer.checkpoints_dir
+            dirpath=writer.checkpoints_dir,
         )
 
         trainer = pl.Trainer(
@@ -123,15 +117,16 @@ def _make_objective(cfg: DictConfig,
                     save_dir=writer.figures_dir,
                     trial_id=trial.number,
                 ),
-                LossCSVCallback(writer, trial.number),
+                LossCSVCallback(writer.save_loss, trial.number),
             ],
-            **cfg.trainer
+            **cfg.trainer,
         )
 
         trainer.fit(model, train_loader, val_loader)
         return trainer.callback_metrics["val_loss"].item()
 
     return objective
+
 
 if __name__ == "__main__":
     main()

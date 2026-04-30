@@ -1,12 +1,15 @@
 from pathlib import Path
+from typing import Callable
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, Callback
 
 
 class LossCSVCallback(pl.Callback):
-    def __init__(self, writer, trial_id: int):
-        self.writer = writer
+    """Expects a callable (trial_id, epoch, train_loss, val_loss) -> None (e.g. Writer.save_loss)."""
+
+    def __init__(self, save_loss_fn: Callable[[int, int, float, float], None], trial_id: int):
+        self.save_loss_fn = save_loss_fn
         self.trial_id = trial_id
 
     def on_validation_epoch_end(self, trainer, pl_module):
@@ -21,11 +24,11 @@ class LossCSVCallback(pl.Callback):
         train_loss = float(train_loss.detach().cpu()) if train_loss is not None else None
         val_loss = float(val_loss.detach().cpu()) if val_loss is not None else None
 
-        self.writer.save_loss(
+        self.save_loss_fn(
             self.trial_id,
-            epoch=trainer.current_epoch,
-            train_loss=train_loss,
-            val_loss=val_loss,
+            trainer.current_epoch,
+            train_loss,
+            val_loss,
         )
 
 class LossPlotCallback(Callback):

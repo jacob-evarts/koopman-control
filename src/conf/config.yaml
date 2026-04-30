@@ -5,10 +5,12 @@ defaults:
   - optim: optuna
 
 dataset:
+  format: npz  # "h5" | "csv" | "npz"
   batch_size: 64
+  num_workers: 4  # DataLoader workers for npz graph loading (0 = main process only)
   dataset_name: arcade
-  data_dir: ./data/arcade_sweeps
-  csv_file: square_emergent.csv
+  data_dir: ./data/networks/rabbit_grass_sweeps_oscil
+  csv_file:
 
 save_dirs:
   figures: ./figures

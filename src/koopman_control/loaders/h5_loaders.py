@@ -83,7 +83,7 @@ class ArcadeDataset(H5Dataset):
     def get_channels(self):
         return ['1cell', '2cell', "3cell", "4cell"]
 
-def get_dataloaders(data_folder: str, batch_size: int, train_frac=0.7, val_frac=0.2, dataset="rabbit"):
+def get_dataloaders_h5(data_folder: str, batch_size: int, train_frac=0.7, val_frac=0.2, dataset="rabbit"):
     folder = Path(data_folder)
     all_files = sorted(folder.glob("*.h5"))
 
