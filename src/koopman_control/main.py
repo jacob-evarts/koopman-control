@@ -30,7 +30,7 @@ def main(cfg: DictConfig) -> None:
 
 def run_study(cfg: DictConfig, run_dir: Path, run_id: str) -> None:
     """Run Optuna study: load data, create writer and objective, optimize, save results."""
-    train_loader, val_loader, test_loader, dataset_props = get_dataloaders(cfg.dataset)
+    train_loader, val_loader, test_loader, dataset_props = get_dataloaders(cfg.dataset, cfg.model)
     writer = Writer(run_dir=run_dir, run_id=run_id)
     objective = _make_objective(
         cfg, train_loader, val_loader, writer, dataset_props, run_id

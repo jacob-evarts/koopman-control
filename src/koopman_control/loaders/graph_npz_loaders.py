@@ -15,6 +15,21 @@ from torch.utils.data import DataLoader, Dataset
 from torch_geometric.data import Batch, Data
 
 
+def graph_dataloader_kwargs(num_workers: int, collate_fn) -> dict:
+    """DataLoader options for PyG graph datasets.
+
+    Avoid ``persistent_workers`` — it commonly leaks semaphores on macOS when the
+    training process is interrupted or OOM-killed.
+    """
+    kw: dict = {
+        "collate_fn": collate_fn,
+        "num_workers": num_workers,
+    }
+    if num_workers > 0:
+        kw["prefetch_factor"] = 2
+    return kw
+
+
 def _slice_timestep(
     ptr: np.ndarray,
     edge_index: np.ndarray,
@@ -129,14 +144,9 @@ def get_dataloaders_npz(
     test_ds = GraphNpzDataset(test_files)
     collate = collate_graph_pairs
 
-    kw: dict = dict(
-        batch_size=batch_size,
-        collate_fn=collate,
-        num_workers=num_workers,
-        persistent_workers=num_workers > 0,
-    )
-    if num_workers > 0:
-        kw["prefetch_factor"] = 2
+    kw = graph_dataloader_kwargs(num_workers, collate)
+    kw["batch_size"] = batch_size
+
     train_loader = DataLoader(train_ds, shuffle=True, **kw)
     val_loader = DataLoader(val_ds, shuffle=False, **kw)
     test_loader = DataLoader(test_ds, shuffle=False, **kw)

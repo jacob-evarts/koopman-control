@@ -2,5 +2,5 @@ hidden_size: 128
 lr: 1e-3
 latent_dim: 32
 activation: relu
-rollout_horizon: 1
-include_control: true
+num_gnn_layers: 2
+beta: 1.0

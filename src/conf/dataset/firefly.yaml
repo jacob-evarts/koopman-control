@@ -1,0 +1,6 @@
+dataset_name: firefly
+format: h5
+# Controlled training rollouts: data/firefly_training (see generate_firefly_training_h5.py)
+data_dir: ./data/firefly_training
+channels:
+  - flashing

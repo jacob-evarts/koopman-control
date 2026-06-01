@@ -4,6 +4,10 @@ version = "0.1.0"
 description = ""
 authors = ["Jacob Evarts <31416036+jacob-evarts@users.noreply.github.com>"]
 readme = "README.md"
+packages = [
+    { include = "koopman_control", from = "src" },
+    { include = "surrogate_control", from = "src" },
+]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.15"
@@ -27,6 +31,8 @@ pylint = "^4.0.4"
 pandas = "^3.0.0"
 imageio = "^2.37.2"
 torch-geometric = "^2.7.0"
+tqdm = "^4.67.3"
+scipy = "^1.15.0"
 
 
 [tool.poetry.group.test.dependencies]
