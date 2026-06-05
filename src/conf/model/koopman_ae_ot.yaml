@@ -1,0 +1,13 @@
+hidden_size: 128
+lr: 1e-3
+latent_dim: 32
+activation: relu
+rollout_horizon: 1
+include_control: true
+# Optimal-transport (Wasserstein) reconstruction/prediction metric.
+# Uses the fast matmul/kernel-form Sinkhorn (auto log-domain fallback if it underflows).
+arch: wasserstein
+ot_grid_size: 16    # Sinkhorn computed on a grid_size x grid_size pooling of the maps
+ot_epsilon: 0.05    # entropic regularization (on cost normalized to [0, 1])
+ot_iters: 30        # Sinkhorn iterations
+ot_mass_weight: 1.0 # weight of the count (mass-mismatch) term vs the OT shape term

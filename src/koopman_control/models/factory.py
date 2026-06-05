@@ -5,6 +5,7 @@ from omegaconf import DictConfig
 
 from koopman_control.loaders.dataloaders import DatasetProps
 from koopman_control.models.koopman_cnn_dynamics import KoopmanCNNDynamics
+from koopman_control.models.koopman_cnn_wasserstein import KoopmanCNNWasserstein
 from koopman_control.models.koopman_mlp import KoopmanMLP
 from koopman_control.models.koopman_gnn import KoopmanGNN
 
@@ -64,7 +65,7 @@ def build_model(
             _get_param(trial_params, cfg, "rollout_horizon")
             or getattr(cfg.model, "rollout_horizon", 1)
         )
-        return KoopmanCNNDynamics(
+        common = dict(
             hidden_size=hidden_size,
             lr=lr,
             latent_dim=latent_dim,
@@ -77,4 +78,16 @@ def build_model(
             beta_recon=_BETA_RECON,
             rollout_horizon=rollout_horizon,
         )
+        arch = str(
+            _get_param(trial_params, cfg, "arch") or getattr(cfg.model, "arch", "dynamics")
+        ).lower()
+        if arch in ("wasserstein", "ot", "sinkhorn"):
+            return KoopmanCNNWasserstein(
+                **common,
+                ot_grid_size=int(_get_param(trial_params, cfg, "ot_grid_size") or 16),
+                ot_epsilon=float(_get_param(trial_params, cfg, "ot_epsilon") or 0.05),
+                ot_iters=int(_get_param(trial_params, cfg, "ot_iters") or 30),
+                ot_mass_weight=float(_get_param(trial_params, cfg, "ot_mass_weight") or 1.0),
+            )
+        return KoopmanCNNDynamics(**common)
     raise ValueError(f"Unknown model_type: {dataset_props.model_type}")
