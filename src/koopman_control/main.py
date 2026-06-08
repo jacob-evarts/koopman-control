@@ -1,5 +1,11 @@
+import os
 import random
 import uuid
+
+# Allow MPS to use full device memory and return freed blocks promptly (reduces
+# within-epoch slowdown from allocator fragmentation on macOS).
+os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.0")
+
 import hydra
 import optuna
 import torch
@@ -8,13 +14,13 @@ from pathlib import Path
 from omegaconf import DictConfig
 from hydra.core.hydra_config import HydraConfig
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping, TQDMProgressBar
 from optuna.integration import PyTorchLightningPruningCallback
 
 from koopman_control.writer import Writer
 from koopman_control.loaders.dataloaders import get_dataloaders
 from koopman_control.models.factory import build_model
-from koopman_control.utils.callbacks import LossCSVCallback, LossPlotCallback
+from koopman_control.utils.callbacks import LossCSVCallback, LossPlotCallback, MpsMemoryCallback
 
 SEED = 42
 torch.manual_seed(SEED)
@@ -72,6 +78,17 @@ def run_study(cfg: DictConfig, run_dir: Path, run_id: str) -> None:
     writer.save_optuna_plots(study)
 
 
+def _build_logger(cfg: DictConfig, run_id: str, trial_number: int):
+    """Skip Wandb entirely when disabled — avoids per-step logger overhead."""
+    if str(cfg.wandb.get("mode", "disabled")).lower() == "disabled":
+        return False
+    return WandbLogger(
+        **cfg.wandb,
+        name=f"{run_id}-trial-{trial_number}",
+        group=f"koopman-{run_id}",
+    )
+
+
 def _make_objective(
     cfg: DictConfig,
     train_loader: torch.utils.data.DataLoader,
@@ -102,23 +119,24 @@ def _make_objective(
             dirpath=writer.checkpoints_dir,
         )
 
-        trainer = pl.Trainer(
-            logger=WandbLogger(
-                **cfg.wandb,
-                name=f"{run_id}-trial-{trial.number}",
-                group=f"koopman-{run_id}",
+        callbacks = [
+            checkpoint_cb,
+            EarlyStopping(monitor="val_loss", patience=4, mode="min"),
+            PyTorchLightningPruningCallback(trial, monitor="val_loss"),
+            LossPlotCallback(
+                checkpoint_cb=checkpoint_cb,
+                save_dir=writer.figures_dir,
+                trial_id=trial.number,
             ),
-            callbacks=[
-                checkpoint_cb,
-                EarlyStopping(monitor="val_loss", patience=4, mode="min"),
-                PyTorchLightningPruningCallback(trial, monitor="val_loss"),
-                LossPlotCallback(
-                    checkpoint_cb=checkpoint_cb,
-                    save_dir=writer.figures_dir,
-                    trial_id=trial.number,
-                ),
-                LossCSVCallback(writer.save_loss, trial.number),
-            ],
+            LossCSVCallback(writer.save_loss, trial.number),
+            TQDMProgressBar(refresh_rate=20),
+        ]
+        if torch.backends.mps.is_available():
+            callbacks.append(MpsMemoryCallback())
+
+        trainer = pl.Trainer(
+            logger=_build_logger(cfg, run_id, trial.number),
+            callbacks=callbacks,
             **cfg.trainer,
         )
 

@@ -43,6 +43,34 @@ def build_model(
             or getattr(cfg.model, "num_gnn_layers", 1)
         )
         beta = float(_get_param(trial_params, cfg, "beta") or getattr(cfg.model, "beta", 1.0))
+        decode_with_pos_raw = _get_param(trial_params, cfg, "decode_with_pos")
+        decode_with_pos = bool(
+            getattr(cfg.model, "decode_with_pos", True)
+            if decode_with_pos_raw is None
+            else decode_with_pos_raw
+        )
+        latent_mode = str(
+            _get_param(trial_params, cfg, "latent_mode")
+            or getattr(cfg.model, "latent_mode", "global")
+        )
+        num_populations = int(
+            _get_param(trial_params, cfg, "num_populations")
+            or getattr(cfg.model, "num_populations", 2)
+        )
+        type_feature_start = int(
+            _get_param(trial_params, cfg, "type_feature_start")
+            or getattr(cfg.model, "type_feature_start", 7)
+        )
+        latent_dim_per_type_raw = _get_param(trial_params, cfg, "latent_dim_per_type")
+        latent_dim_per_type = (
+            int(latent_dim_per_type_raw) if latent_dim_per_type_raw is not None else None
+        )
+        include_control_raw = _get_param(trial_params, cfg, "include_control")
+        include_control = bool(
+            getattr(cfg.model, "include_control", True)
+            if include_control_raw is None
+            else include_control_raw
+        )
         return KoopmanGNN(
             node_input_dim=dataset_props.node_input_dim,
             hidden_size=hidden_size,
@@ -51,6 +79,12 @@ def build_model(
             activation=activation,
             num_gnn_layers=num_gnn_layers,
             beta=beta,
+            decode_with_pos=decode_with_pos,
+            latent_mode=latent_mode,
+            num_populations=num_populations,
+            type_feature_start=type_feature_start,
+            latent_dim_per_type=latent_dim_per_type,
+            include_control=include_control,
         )
     if dataset_props.model_type == "mlp":
         return KoopmanMLP(

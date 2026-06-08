@@ -55,6 +55,15 @@ def get_dataloaders(dataset_cfg: DictConfig, model_cfg: DictConfig | None = None
         num_workers = int(getattr(dataset_cfg, "num_workers", 4) or 0)
         dataset_file = str(getattr(dataset_cfg, "dataset_file", "dataset.h5"))
         manifest_file = str(getattr(dataset_cfg, "manifest_file", "manifest.json"))
+        preload = bool(getattr(dataset_cfg, "preload", False))
+        precollate = bool(getattr(dataset_cfg, "precollate", False))
+        batch_device = getattr(dataset_cfg, "batch_device", None)
+        if batch_device is not None:
+            batch_device = str(batch_device)
+        include_control = bool(getattr(dataset_cfg, "include_control", False))
+        if model_cfg is not None:
+            if hasattr(model_cfg, "include_control") and model_cfg.include_control is not None:
+                include_control = bool(model_cfg.include_control)
         train_loader, val_loader, test_loader = get_dataloaders_gnn_h5(
             data_dir,
             batch_size,
@@ -62,6 +71,10 @@ def get_dataloaders(dataset_cfg: DictConfig, model_cfg: DictConfig | None = None
             dataset_file=dataset_file,
             manifest_file=manifest_file,
             num_workers=num_workers,
+            preload=preload,
+            precollate=precollate,
+            batch_device=batch_device,
+            include_control=include_control,
         )
         h5_path = Path(data_dir) / dataset_file
         node_input_dim = GraphH5Dataset.read_node_input_dim(h5_path)

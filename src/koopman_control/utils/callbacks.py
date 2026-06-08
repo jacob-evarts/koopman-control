@@ -1,7 +1,9 @@
 from pathlib import Path
 from typing import Callable
+import gc
 import matplotlib.pyplot as plt
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning.callbacks import ModelCheckpoint, Callback
 
 
@@ -30,6 +32,36 @@ class LossCSVCallback(pl.Callback):
             train_loss,
             val_loss,
         )
+
+
+class MpsMemoryCallback(Callback):
+    """Release MPS allocator cache at epoch boundaries.
+
+    Frequent ``empty_cache`` during an epoch tends to worsen MPS thrashing by
+    forcing repeated re-allocation; intra-epoch clearing is off by default.
+    """
+
+    def __init__(self, empty_cache_every_n_train_batches: int = 0) -> None:
+        super().__init__()
+        self.empty_cache_every_n_train_batches = empty_cache_every_n_train_batches
+
+    def _on_mps(self, pl_module) -> bool:
+        return torch.backends.mps.is_available() and pl_module.device.type == "mps"
+
+    def _release_mps_cache(self) -> None:
+        if torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+            gc.collect()
+
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx) -> None:
+        n = self.empty_cache_every_n_train_batches
+        if n > 0 and (batch_idx + 1) % n == 0 and self._on_mps(pl_module):
+            self._release_mps_cache()
+
+    def on_train_epoch_end(self, trainer, pl_module) -> None:
+        if self._on_mps(pl_module):
+            self._release_mps_cache()
+
 
 class LossPlotCallback(Callback):
     def __init__(self, checkpoint_cb: ModelCheckpoint, save_dir: Path, trial_id: int):

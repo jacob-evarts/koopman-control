@@ -95,11 +95,80 @@ class GraphNpzDataset(Dataset):
 
 def collate_graph_pairs(
     batch: list[tuple[Data, Data, dict]],
-) -> tuple[Batch, Batch, list[dict]]:
+) -> tuple[Batch, Batch, list[dict]] | tuple[Batch, Batch, torch.Tensor, list[dict]]:
     batch_t = Batch.from_data_list([b[0] for b in batch])
     batch_tp = Batch.from_data_list([b[1] for b in batch])
     meta = [b[2] for b in batch]
+    if meta and "u" in meta[0]:
+        u = torch.tensor([m["u"] for m in meta], dtype=torch.float32).view(-1, 1)
+        return batch_t, batch_tp, u, meta
     return batch_t, batch_tp, meta
+
+
+def collate_prebatched(
+    batch: list[
+        tuple[Batch, Batch, list[dict]] | tuple[Batch, Batch, torch.Tensor, list[dict]]
+    ],
+) -> tuple[Batch, Batch, list[dict]] | tuple[Batch, Batch, torch.Tensor, list[dict]]:
+    """Identity collate when each dataset index is already a full mini-batch."""
+    return batch[0]
+
+
+class PrebatchedGraphDataset(Dataset):
+    """Collate once at init and reuse the same Batch tensors every epoch.
+
+    Avoids per-step ``Batch.from_data_list`` and optional CPU→device copies that
+    trigger MPS allocator churn on variable-size graphs.
+    """
+
+    def __init__(
+        self,
+        base: Dataset,
+        batch_size: int,
+        batch_device: str | None = None,
+    ):
+        self.batch_size = batch_size
+        self.batches: list[
+            tuple[Batch, Batch, list[dict]] | tuple[Batch, Batch, torch.Tensor, list[dict]]
+        ] = []
+        buf: list[tuple[Data, Data, dict]] = []
+        for i in range(len(base)):
+            buf.append(base[i])
+            if len(buf) == batch_size:
+                self._append_collated(buf, batch_device)
+                buf = []
+        if buf:
+            self._append_collated(buf, batch_device)
+
+    def _append_collated(
+        self,
+        buf: list[tuple[Data, Data, dict]],
+        batch_device: str | None,
+    ) -> None:
+        collated = collate_graph_pairs(buf)
+        if len(collated) == 4:
+            batch_t, batch_tp, u, meta = collated
+            if batch_device is not None:
+                dev = torch.device(batch_device)
+                batch_t = batch_t.to(dev)
+                batch_tp = batch_tp.to(dev)
+                u = u.to(dev)
+            self.batches.append((batch_t, batch_tp, u, meta))
+            return
+        batch_t, batch_tp, meta = collated
+        if batch_device is not None:
+            dev = torch.device(batch_device)
+            batch_t = batch_t.to(dev)
+            batch_tp = batch_tp.to(dev)
+        self.batches.append((batch_t, batch_tp, meta))
+
+    def __len__(self) -> int:
+        return len(self.batches)
+
+    def __getitem__(
+        self, idx: int
+    ) -> tuple[Batch, Batch, list[dict]] | tuple[Batch, Batch, torch.Tensor, list[dict]]:
+        return self.batches[idx]
 
 
 def get_dataloaders_npz(
