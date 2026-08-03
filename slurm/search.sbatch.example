@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+#
+# Submit from the repository root:
+#   sbatch slurm/search.sbatch
+#
+# Copy this example to search.sbatch first, then customize the cluster-specific
+# account, partition, GPU, memory, and wall-time directives.
+
+#SBATCH --job-name=koopman-search
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
+#SBATCH --time=48:00:00
+#SBATCH --gres=gpu:1
+#SBATCH --output=slurm-%x-%j.out
+#SBATCH --error=slurm-%x-%j.err
+#
+# Uncomment and edit when required by your cluster:
+##SBATCH --account=YOUR_ACCOUNT
+##SBATCH --partition=YOUR_GPU_PARTITION
+
+set -euo pipefail
+
+# `sbatch` sets this to the directory from which the job was submitted.
+REPO_ROOT="${SLURM_SUBMIT_DIR:?Submit this job from the repository root}"
+cd "$REPO_ROOT"
+
+# Make a private copy of hpc.env.example, edit it for the cluster, and leave it
+# outside Git if it contains site-specific paths.
+ENV_FILE="${KOOPMAN_ENV_FILE:-$REPO_ROOT/hpc.env}"
+if [[ ! -f "$ENV_FILE" ]]; then
+    echo "Missing $ENV_FILE"
+    echo "Run: cp hpc.env.example hpc.env, then edit the paths."
+    exit 2
+fi
+# shellcheck disable=SC1090
+source "$ENV_FILE"
+
+# Cluster-specific software setup goes here if Python/CUDA are provided by
+# environment modules. Examples (do not uncomment blindly):
+# module purge
+# module load python/3.12 cuda/12
+
+# Prefer a project-local environment so compute nodes do not depend on Poetry or
+# network access. Create it once on a login/interactive node with:
+#   poetry config virtualenvs.in-project true
+#   poetry install
+PYTHON="${PYTHON:-$REPO_ROOT/.venv/bin/python}"
+if [[ ! -x "$PYTHON" ]]; then
+    echo "Python environment not found at $PYTHON"
+    exit 2
+fi
+
+export PYTHONUNBUFFERED=1
+export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
+export MKL_NUM_THREADS="${SLURM_CPUS_PER_TASK:-1}"
+
+# Values can be overridden at submission:
+#   sbatch --export=ALL,TRIALS=80,FINAL_SEEDS=5 slurm/search.sbatch
+TRIALS="${TRIALS:-40}"
+FINAL_SEEDS="${FINAL_SEEDS:-3}"
+MAX_EPOCHS="${MAX_EPOCHS:-50}"
+HORIZON="${HORIZON:-20}"
+STUDY_NAME="${STUDY_NAME:-linear-h${HORIZON}}"
+STUDY_DIR="${STUDY_DIR:-$KOOPMAN_OUTPUT_ROOT/search/$STUDY_NAME}"
+
+mkdir -p "$STUDY_DIR"
+
+echo "Job ID:        $SLURM_JOB_ID"
+echo "Node:          $SLURMD_NODENAME"
+echo "Dataset:       ${KOOPMAN_DATASET:-$KOOPMAN_DATA_ROOT/rabbit_grass_images/dataset.h5}"
+echo "Study:         $STUDY_DIR"
+echo "Trials:        $TRIALS"
+echo "Final seeds:   $FINAL_SEEDS"
+
+srun "$PYTHON" -m koopman_control.search \
+    --study-dir "$STUDY_DIR" \
+    --study-name "$STUDY_NAME" \
+    --dynamics-modes linear \
+    --horizon "$HORIZON" \
+    --trials "$TRIALS" \
+    --max-epochs "$MAX_EPOCHS" \
+    --final-seeds "$FINAL_SEEDS" \
+    --early-stopping-patience 8 \
+    --pruning-warmup-epochs 5 \
+    --num-workers "${SLURM_CPUS_PER_TASK:-1}" \
+    --accelerator gpu \
+    --devices 1 \
+    --precision 16-mixed

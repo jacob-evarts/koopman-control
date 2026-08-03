@@ -1,8 +1,0 @@
-dataset_name: arcade
-format: h5
-data_dir: ./data/arcade_sweeps
-channels:
-  - 1cell
-  - 2cell
-  - 3cell
-  - 4cell

@@ -3,7 +3,6 @@ data/*
 outputs/*
 figures/*
 
-*.ipynb
 *.prof
 
 # Editors
@@ -92,6 +91,7 @@ ipython_config.py
 
 # Environments
 .env
+hpc.env
 .venv
 env/
 venv/

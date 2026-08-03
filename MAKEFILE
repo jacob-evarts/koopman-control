@@ -1,4 +1,6 @@
-.PHONY: clean build
+.PHONY: clean build test format generate dmdc train search report
+
+STUDY_DIR ?= $(if $(KOOPMAN_OUTPUT_ROOT),$(KOOPMAN_OUTPUT_ROOT)/search/worldmodel,outputs/search/worldmodel)
 
 clean: # clean all build, python, and testing files
 	rm -fr htmlcov/
@@ -7,3 +9,25 @@ clean: # clean all build, python, and testing files
 
 build: # run tox tests and lint
 	tox
+
+test:
+	poetry run pytest -q tests/
+
+format:
+	poetry run black -l 100 src/ tests/
+
+generate:
+	poetry run python -m koopman_control.data.generate
+
+dmdc:
+	poetry run python -m koopman_control.analysis.dmdc
+
+train:
+	poetry run python -m koopman_control.train
+
+search:
+	poetry run python -m koopman_control.search \
+		--study-dir $(STUDY_DIR)
+
+report:
+	poetry run python -m koopman_control.analysis.training $(STUDY_DIR)

@@ -1,5 +1,0 @@
-dataset_name: rabbit
-format: h5
-data_dir: ./data/rabbit_grass_training
-channels:
-  - rabbits

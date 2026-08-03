@@ -1,5 +1,0 @@
-max_epochs: 15
-accelerator: auto
-devices: 1
-deterministic: true
-log_every_n_steps: 20
