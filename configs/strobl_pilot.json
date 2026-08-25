@@ -1,0 +1,31 @@
+{
+  "profile": "pilot",
+  "description": "Focused pilot: 120 standard episodes plus 50 matched-state episodes.",
+  "seed": 20260824,
+  "width": 100,
+  "height": 100,
+  "intervals": 500,
+  "standard_episodes": 120,
+  "matched_groups": 5,
+  "matched_replicates": 2,
+  "canonical_standard_episodes": 12,
+  "density_range": [0.25, 0.75],
+  "resistant_fraction_range": [0.001, 0.05],
+  "parameter_ranges": {
+    "r_s": [0.02, 0.04],
+    "resistance_cost": [0.0, 0.3],
+    "turnover_fraction": [0.0, 0.3]
+  },
+  "d_d": 0.75,
+  "d_max": 1.0,
+  "dt": 1.0,
+  "q_tumour": 1.0,
+  "q_dose": 0.05,
+  "stop_on_terminal": true,
+  "controlled_evaluation": {
+    "groups": 0,
+    "replicates": 0,
+    "doses": [0.0, 0.5, 1.0],
+    "architecture": "random_mixed"
+  }
+}

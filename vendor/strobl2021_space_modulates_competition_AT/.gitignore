@@ -1,0 +1,7 @@
+.build/
+controlled-model.jar
+
+# The pristine HAL subset contains an upstream directory named "lib" and
+# native support files that the repository-level Python patterns ignore.
+!upstream/abm/Framework/lib/
+!upstream/abm/Framework/lib/**

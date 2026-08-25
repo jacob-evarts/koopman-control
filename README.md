@@ -28,6 +28,20 @@ notebooks/worldmodel_eval.ipynb
 The old Hydra/Optuna experiment framework, alternative Koopman models, graph
 pipeline, surrogate-control package, and exploratory notebooks have been removed.
 
+Additional JEPA control case studies:
+
+- `JEPA_CONTROL.md` — decoder-free latent dynamics and MPC
+- `TUMOR_CASE_STUDY.md` — localized tumor growth, healthy-tissue toxicity, and
+  multi-objective chemotherapy MPC
+- `SIR_CASE_STUDY.md` — spatial agentic SIR outbreak, vaccination control, and
+  multi-objective epidemic MPC
+- `STROBL_CASE_STUDY.md` — provenance-tracked Strobl et al. spatial
+  adaptive-therapy benchmark with one globally applied scalar dose
+
+The Strobl case study is a **synthetic methodological benchmark without
+clinical validity**. It is not a treatment recommendation and must not be used
+for patient care.
+
 ## Install
 
 ```bash

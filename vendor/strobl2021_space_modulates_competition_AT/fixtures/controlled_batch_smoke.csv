@@ -1,0 +1,8 @@
+step,time,dose,sensitive,resistant,total,attempted_divisions_sensitive,attempted_divisions_resistant,blocked_divisions_sensitive,blocked_divisions_resistant,natural_deaths_sensitive,natural_deaths_resistant,drug_deaths_sensitive,drug_deaths_resistant
+0,0.00000000000,0.750000000000,36,6,42,0,0,0,0,0,0,0,0
+1,1.00000000000,0.750000000000,36,6,42,2,1,2,1,0,0,0,0
+2,2.00000000000,0.750000000000,36,6,42,2,0,2,0,0,0,0,0
+3,3.00000000000,0.750000000000,36,6,42,1,0,1,0,0,0,0,0
+4,4.00000000000,0.750000000000,37,6,43,1,0,0,0,0,0,0,0
+5,5.00000000000,0.750000000000,37,6,43,1,0,1,0,0,0,0,0
+6,6.00000000000,0.750000000000,38,6,44,1,1,0,1,0,0,0,0

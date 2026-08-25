@@ -1,10 +1,13 @@
 [tool.poetry]
-name = "koopman-control"
+name = "abm-control"
 version = "0.1.0"
 description = "Image-based latent dynamics and control for stochastic biological systems"
 authors = ["Jacob Evarts <31416036+jacob-evarts@users.noreply.github.com>"]
 readme = "README.md"
-packages = [{ include = "koopman_control", from = "src" }]
+packages = [
+    { include = "koopman_control", from = "src" },
+    { include = "jepa_control", from = "src" },
+]
 
 [tool.poetry.dependencies]
 python = ">=3.12,<3.15"
@@ -15,6 +18,7 @@ matplotlib = "^3.10.8"
 h5py = "^3.15.1"
 tqdm = "^4.67.3"
 optuna = "^4.9.0"
+scipy = "^1.18.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"

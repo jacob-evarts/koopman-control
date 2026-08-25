@@ -1,0 +1,31 @@
+{
+  "profile": "smoke",
+  "description": "Fast integration and schema validation; not a scientific dataset.",
+  "seed": 1729,
+  "width": 20,
+  "height": 20,
+  "intervals": 30,
+  "standard_episodes": 20,
+  "matched_groups": 1,
+  "matched_replicates": 1,
+  "canonical_standard_episodes": 2,
+  "density_range": [0.25, 0.75],
+  "resistant_fraction_range": [0.001, 0.05],
+  "parameter_ranges": {
+    "r_s": [0.02, 0.04],
+    "resistance_cost": [0.0, 0.3],
+    "turnover_fraction": [0.0, 0.3]
+  },
+  "d_d": 0.75,
+  "d_max": 1.0,
+  "dt": 1.0,
+  "q_tumour": 1.0,
+  "q_dose": 0.05,
+  "stop_on_terminal": true,
+  "controlled_evaluation": {
+    "groups": 1,
+    "replicates": 1,
+    "doses": [0.0, 0.5, 1.0],
+    "architecture": "random_mixed"
+  }
+}
