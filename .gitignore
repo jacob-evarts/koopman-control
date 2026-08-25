@@ -3,6 +3,9 @@ data/*
 outputs/*
 figures/*
 
+# Local notebooks (keep on disk, do not commit)
+notebooks/*.ipynb
+
 *.prof
 
 # Editors
